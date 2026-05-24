@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Farmer Mandi Intelligence Dashboard</title>
+    <meta name="description" content="AI-powered dashboard for farmers to predict crop prices, analyze trends, and find the best mandis for maximum profit.">
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <script>
+        // Authentication Guard: Redirect if not logged in
+        if (!localStorage.getItem('mandiUser')) {
+            window.location.href = 'login.html';
+        }
+    </script>
+</head>
+<body>
+    <!-- Global Loading Screen -->
+    <div id="globalLoader" class="global-loader">
+        <div class="loader-content">
+            <i class="fa-solid fa-leaf text-emerald" style="font-size: 3rem; margin-bottom: 15px; animation: pulse 2s infinite;"></i>
+            <h1 style="margin:0; font-size: 2.5rem; letter-spacing: -1px;">Mandi<span class="text-emerald">Intel</span></h1>
+            <p style="color: var(--text-muted); margin-top: 10px; font-weight: 300;">Syncing with Indian Agriculture Nodes...</p>
+            <div class="spinner-modern"></div>
+        </div>
+    </div>
+
+    <!-- Mobile Sidebar Dark Overlay -->
+    <div id="mobileMenuOverlay" class="mobile-menu-overlay"></div>
+
+    <div class="app-container">
+        <aside class="sidebar glass-panel">
+            <div class="logo">
+                <i class="fa-solid fa-leaf text-emerald"></i>
+                <h1 data-i18n="appTitle">Mandi<span class="text-emerald">Intel</span></h1>
+            </div>
+            
+            <nav class="nav-menu">
+                <div class="nav-item active"><i class="fa-solid fa-chart-line"></i> <span data-i18n="menuTrends">Market Trends</span></div>
+                <div class="nav-item" id="bestMandiMenuBtn"><i class="fa-solid fa-location-dot"></i> <span data-i18n="menuBest">Best Mandis</span></div>
+                <div class="nav-item"><i class="fa-solid fa-robot"></i> <span data-i18n="menuAI">AI Predictions</span></div>
+                <div class="nav-item" id="priceCompareMenuBtn"><i class="fa-solid fa-code-compare"></i> <span data-i18n="menuCompare">Price Comparison</span></div>
+                <div class="nav-item" id="basicCalcMenuBtn"><i class="fa-solid fa-calculator"></i> <span data-i18n="menuBasicCalc">Basic Calculator</span></div>
+                <div class="nav-item" id="calcMenuBtn"><i class="fa-solid fa-wallet"></i> <span data-i18n="menuCalc">Profit Calculator</span></div>
+            </nav>
+
+            <div class="filters">
+                <div style="margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between;">
+                    <h3 data-i18n="filterTitle"><i class="fa-solid fa-filter"></i> Crop & Mandi Filters</h3>
+                    <select id="langSwitcher" class="cyber-select" style="width: auto; padding: 4px;">
+                        <option value="en">Eng</option>
+                        <option value="hi">हिंदी</option>
+                    </select>
+                </div>
+                
+                <div class="filter-group">
+                    <label for="cropSelect" data-i18n="selectCrop">Select Crop</label>
+                    <select id="cropSelect" class="cyber-select">
+                        <!-- Dynamic -->
+                    </select>
+                </div>
+
+                <div class="filter-group">
+                    <label for="mandiSelect">Select Mandi</label>
+                    <select id="mandiSelect" class="cyber-select">
+                        <!-- Dynamic -->
+                    </select>
+                </div>
+
+                <div class="calc-field" style="margin-bottom: 15px;">
+                    <label data-i18n="aiModelLabel">AI Brain (OpenRouter)</label>
+                    <select id="aiModelSelect" class="cyber-select">
+                        <option value="default" data-i18n="aiModelDefault">Default Mode (Math Rules)</option>
+                        <option value="google/gemini-2.0-flash-lite-preview-02-05:free">Gemini 2.0 Flash Lite</option>
+                        <option value="meta-llama/llama-3.1-8b-instruct:free">Llama 3.1 8B</option>
+                        <option value="mistralai/mistral-7b-instruct:free">Mistral 7B</option>
+                        <option value="microsoft/phi-3-mini-128k-instruct:free">Phi-3 Mini</option>
+                    </select>
+                </div>
+                
+                <button id="applyFilters" class="btn-primary" data-i18n="applyBtn">Apply Filters</button>
+                <button id="toggleDataBtn" class="btn-primary" style="background: linear-gradient(135deg, var(--purple) 0%, #6d28d9 100%); margin-top: 8px;" data-i18n="useDummyData">Use Dummy Data</button>
+            </div>
+        </aside>
+
+        <main class="main-content">
+            <header class="top-header glass-panel">
+                <div style="display:flex; align-items:center; gap: 12px;">
+                    <button id="mobileMenuBtn" class="mobile-menu-btn"><i class="fa-solid fa-bars"></i></button>
+                    <h2 id="pageTitle" data-i18n="overviewTitle">30-Day Market Overview</h2>
+                </div>
+                <div class="user-profile">
+                    <span data-i18n="profileName">Farmer Profit Portal</span>
+                    <button id="logoutBtn" style="background:transparent; border:none; color:var(--text-muted); cursor:pointer; margin-left:10px; font-size:1.1rem;"><i class="fa-solid fa-power-off"></i></button>
+                </div>
+            </header>
+
+            <!-- Hero Banner -->
+            <div style="width: 100%; height: 160px; margin-bottom: 24px; border-radius: 16px; overflow: hidden; position: relative; border: 1px solid var(--panel-border);">
+                <img src="assets/banner.png" alt="Agri Tech Data" style="width: 100%; height: 100%; object-fit: cover; opacity: 0.75;">
+                <div style="position: absolute; bottom: 0; left: 0; right: 0; height: 75%; background: linear-gradient(to bottom, transparent, var(--bg-dark));"></div>
+            </div>
+
+            <div class="metrics-grid">
+                <div class="metric-card glass-panel pulse-hover">
+                    <div class="metric-icon bg-emerald-light"><i class="fa-solid fa-arrow-trend-up"></i></div>
+                    <div class="metric-info">
+                        <p data-i18n="bestMandiLabel">Best Mandi Right Now</p>
+                        <h3 id="bestMandiDisplay">Loading...</h3>
+                    </div>
+                </div>
+                <div class="metric-card glass-panel pulse-hover">
+                    <div class="metric-icon bg-blue-light"><i class="fa-solid fa-coins"></i></div>
+                    <div class="metric-info">
+                        <p data-i18n="maxPriceLabel">Max Current Price</p>
+                        <h3 id="maxPriceDisplay">₹ --/Qtl</h3>
+                    </div>
+                </div>
+                <div class="metric-card glass-panel pulse-hover">
+                    <div class="metric-icon bg-purple-light"><i class="fa-solid fa-bolt"></i></div>
+                    <div class="metric-info">
+                        <p data-i18n="suggestedLabel">Suggested Action</p>
+                        <h3 id="suggestedActionDisplay" class="text-gradient">--</h3>
+                    </div>
+                </div>
+            </div>
+
+            <div class="dashboard-grid">
+                <section class="chart-section glass-panel">
+                    <div class="section-header">
+                        <h3 data-i18n="chartTitle">Price Trend & 7-Day Prediction</h3>
+                        <span class="badge" data-i18n="chartBadge">Moving Average Model</span>
+                    </div>
+                    <div class="chart-container">
+                        <canvas id="priceChart"></canvas>
+                    </div>
+                </section>
+
+                <aside class="insights-section glass-panel">
+                    <h3 data-i18n="insightsTitle"><i class="fa-solid fa-lightbulb text-yellow"></i> Farmer-Focused Insights</h3>
+                    <div id="insightsContainer" class="insights-list">
+                        <!-- Insights dynamically populated here -->
+                        <div class="insight-item loadingSkeleton"></div>
+                        <div class="insight-item loadingSkeleton"></div>
+                        <div class="insight-item loadingSkeleton"></div>
+                    </div>
+                </aside>
+            </div>
+        </main>
+    </div>
+
+    <!-- Profit Calculator Modal -->
+    <div id="calcModal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3 data-i18n="calcTitle">Profit Calculator</h3>
+                <button id="closeCalc" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="calc-field">
+                <label for="calcQty" data-i18n="calcQty">Quantity (Quintals)</label>
+                <input type="number" id="calcQty" placeholder="10" min="1" value="10">
+            </div>
+
+            <div class="calc-field">
+                <label for="calcTransport" data-i18n="calcTransport">Transport Cost (₹)</label>
+                <input type="number" id="calcTransport" placeholder="500" min="0" value="500">
+            </div>
+
+            <div class="calc-field">
+                <label for="calcOther" data-i18n="calcOther">Other Costs (₹)</label>
+                <input type="number" id="calcOther" placeholder="0" min="0" value="0">
+            </div>
+
+            <button id="calcProfitBtn" class="btn-primary" data-i18n="calcBtn">Calculate Profit</button>
+
+            <div id="calcResultDisplay" class="calc-result hidden">
+                <span data-i18n="calcResult">Expected Profit:</span> <br>
+                <h2 id="calcProfitValue" style="margin-top: 8px;">₹ 0</h2>
+            </div>
+        </div>
+    </div>
+
+    <!-- Best Mandi Finder Modal -->
+    <div id="bestMandiModal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel">
+            <div class="modal-header">
+                <h3 data-i18n="finderTitle">Best Mandi Finder</h3>
+                <button id="closeFinder" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="calc-field">
+                <label for="finderCropSelect" data-i18n="finderCrop">Target Crop</label>
+                <select id="finderCropSelect" class="cyber-select"></select>
+            </div>
+
+            <div class="calc-field">
+                <label for="finderFactorSelect" data-i18n="finderFactor">Optimization Factor</label>
+                <select id="finderFactorSelect" class="cyber-select">
+                    <option value="price" data-i18n="factorPrice">Highest Selling Price</option>
+                    <option value="distance" data-i18n="factorDistance">Closest Distance (Simulated)</option>
+                    <option value="volume" data-i18n="factorVolume">Highest Trade Volume (Simulated)</option>
+                </select>
+            </div>
+
+            <button id="findBestMandiBtn" class="btn-primary" data-i18n="finderBtn">Find Best Mandis</button>
+
+            <div id="finderResults" class="insights-list" style="margin-top: 10px; max-height: 250px; overflow-y: auto;">
+                <!-- Dynamically injected results -->
+            </div>
+        </div>
+    </div>
+
+    <!-- Basic Calculator Modal -->
+    <div id="basicCalcModal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel" style="width: 340px;">
+            <div class="modal-header">
+                <h3 data-i18n="basicCalcTitle">Basic Calculator</h3>
+                <button id="closeBasicCalc" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div class="basic-calc-grid">
+                <input type="text" id="calcDisplay" class="calc-display" disabled placeholder="0">
+                
+                <button class="calc-button" onclick="appendCalc('7')">7</button>
+                <button class="calc-button" onclick="appendCalc('8')">8</button>
+                <button class="calc-button" onclick="appendCalc('9')">9</button>
+                <button class="calc-button op-btn" onclick="appendCalc('/')">/</button>
+
+                <button class="calc-button" onclick="appendCalc('4')">4</button>
+                <button class="calc-button" onclick="appendCalc('5')">5</button>
+                <button class="calc-button" onclick="appendCalc('6')">6</button>
+                <button class="calc-button op-btn" onclick="appendCalc('*')">×</button>
+
+                <button class="calc-button" onclick="appendCalc('1')">1</button>
+                <button class="calc-button" onclick="appendCalc('2')">2</button>
+                <button class="calc-button" onclick="appendCalc('3')">3</button>
+                <button class="calc-button op-btn" onclick="appendCalc('-')">-</button>
+
+                <button class="calc-button clear-btn" onclick="appendCalc('C')">C</button>
+                <button class="calc-button" onclick="appendCalc('0')">0</button>
+                <button class="calc-button op-btn" style="background:var(--emerald);" onclick="evaluateCalc()">=</button>
+                <button class="calc-button op-btn" onclick="appendCalc('+')">+</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Price Comparison Modal -->
+    <div id="priceCompareModal" class="modal-overlay hidden">
+        <div class="modal-content glass-panel" style="width: 800px; max-width: 95%;">
+            <div class="modal-header">
+                <h3 data-i18n="compareTitle">Price Comparison (Ref: Lucknow)</h3>
+                <button id="closeCompare" class="close-btn"><i class="fa-solid fa-xmark"></i></button>
+            </div>
+            
+            <div style="display: flex; gap: 15px; margin-bottom: 20px; flex-wrap: wrap; align-items: flex-end;">
+                <div style="width: 200px;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 5px;">1. Select Crop</label>
+                    <select id="compareCropSelect" class="cyber-select">
+                        <option value="" data-i18n="selectCropPrompt">Choose Crop...</option>
+                    </select>
+                </div>
+                <div style="flex: 1; min-width: 200px;">
+                    <label style="font-size: 0.8rem; color: var(--text-muted); display: block; margin-bottom: 5px;">2. Search City/Mandi (Optional)</label>
+                    <input type="text" id="compareSearch" class="cyber-select" placeholder="Type city name..." style="width: 100%;">
+                </div>
+            </div>
+
+            <div id="compareResults" style="max-height: 400px; overflow-y: auto;">
+                <table class="compare-table">
+                    <thead>
+                        <tr>
+                            <th>Mandi / City</th>
+                            <th>Crop</th>
+                            <th>Price (₹/Qtl)</th>
+                            <th>Dist from Lucknow (KM)</th>
+                            <th>Trans. Charge (₹)</th>
+                            <th>Estimated Total (₹)</th>
+                        </tr>
+                    </thead>
+                    <tbody id="compareResultsBody">
+                        <!-- Dynamic rows -->
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+
+    <!-- UI Logic & Data -->
+    <script src="app.js"></script>
+</body>
+</html>
